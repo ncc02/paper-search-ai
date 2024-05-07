@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('search', views.search),
     path('trend_year', views.trend_year),
+    path('trend_10_year', views.trend_10_year),
 ]

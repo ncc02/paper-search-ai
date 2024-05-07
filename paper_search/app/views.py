@@ -130,4 +130,63 @@ def get_url_table(year):
     plt.savefig(image_path)
     return image_path, top_20_words
   
+@api_view(['GET'])
+def trend_10_year(request):
+    year = request.query_params.get('year', '') # Lấy tham số search từ query params
+    if year == '':
+        year = datetime.now().year - 1
+    else:
+        year = int(year)
+    
+    # Đọc dữ liệu từ tệp CSV
+    df = pd.read_csv(PATH)
+    
+    # Tạo một danh sách để lưu trữ dữ liệu từ khóa và tần suất
+    keyword_data_list = []
+    
+    # Lặp qua từng năm từ 9 năm trước đến năm hiện tại
+    for y in range(max(1987, year - 9), year + 1):
+        # Lọc dữ liệu cho từng năm
+        data_for_year = df[df['Year'] == y]
+        
+        # Tạo một từ điển để đếm tần suất của từng từ khóa cho năm hiện tại
+        keyword_count = {}
+        for keywords in data_for_year['Keywords']:
+            # Xử lý chuỗi từ khóa và đếm tần suất xuất hiện của từng từ khóa
+            words = keywords.strip('[]').split(', ')
+            for word in words:
+                word = word.strip("'")
+                keyword_count[word] = keyword_count.get(word, 0) + 1
+        
+        # Thêm dữ liệu từ khóa và tần suất vào danh sách
+        for keyword, freq in keyword_count.items():
+            keyword_data_list.append({'Year': y, 'Keyword': keyword, 'Frequency': freq})
+    
+    # Tạo DataFrame từ danh sách dữ liệu từ khóa
+    keyword_trends = pd.DataFrame(keyword_data_list)
+    # Lấy top 10 từ khóa phổ biến nhất
+    top_10_keywords = keyword_trends.groupby('Keyword').sum()['Frequency'].nlargest(10).index
+    
+    # Lọc dữ liệu cho top 10 từ khóa
+    for keyword in top_10_keywords:
+        keyword_data = keyword_trends[keyword_trends['Keyword'] == keyword]
+        
+        # Tạo biểu đồ đường cho từng từ khóa
+        plt.plot(keyword_data['Year'], keyword_data['Frequency'], label=keyword)
 
+    # Đặt tiêu đề và nhãn cho biểu đồ
+    plt.title('Trend of Top 10 Keywords Over 10 Years')
+    plt.xlabel('Year')
+    plt.ylabel('Frequency')
+    plt.legend()
+    
+    # Lưu biểu đồ dưới dạng ảnh
+    image_path = URL + 'line_graph.png'
+    plt.savefig(image_path)
+    plt.close()  # Đóng biểu đồ để giải phóng bộ nhớ
+    
+    response_data = {
+        "url": image_path,
+    }    
+    # Trả về phản hồi RESTful API
+    return Response(response_data, status=200)
